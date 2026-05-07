@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -19,10 +20,12 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class WalletService {
 
+    private final FraudCheckService fraudCheckService;
     private final Map<Long, Wallet> wallets = new ConcurrentHashMap<>();
     private final Map<Long, ReentrantLock> locks = new ConcurrentHashMap<>();
 
-    public WalletService(){
+    public WalletService(FraudCheckService fraudCheckService){
+        this.fraudCheckService = fraudCheckService;
         //Seed data: Alice 1000, Bob 500
         wallets.put(1L, new Wallet(1L, "Alice", new BigDecimal("1000")));
         wallets.put(2L, new Wallet(2L, "Bob", new BigDecimal("500")));
@@ -32,49 +35,59 @@ public class WalletService {
      * Processes a transfer between two wallets atomically
      * DeadLock prevention: always lock lower ID first
      */
-    public ProcessResult transfer(TransferRequest request){
-        Long fromId = request.fromWalletId();
-        Long toId   = request.toWalletId();
+    public CompletableFuture<ProcessResult> transfer(TransferRequest request){
+        return fraudCheckService.validateTransfer(request.fromWalletId(), request.toWalletId(), request.amount())
+                .thenCompose(isValid -> {
+                    if (!isValid ){
+                        return CompletableFuture.completedFuture(
+                                new ProcessResult.Failed("Transfer rejected", "FRAUD_403"));
+                    }
 
-        //Lock ordering: avoid deadlock A -> B and B -> A
-        Long firstLock  = Math.min(fromId, toId);
-        Long secondLock = Math.max(fromId, toId);
+                    return CompletableFuture.supplyAsync(() -> {
+                        Long fromId = request.fromWalletId();
+                        Long toId   = request.toWalletId();
 
-        ReentrantLock lock1 = locks.computeIfAbsent(firstLock, k -> new ReentrantLock());
-        ReentrantLock lock2 = locks.computeIfAbsent(secondLock, k -> new ReentrantLock());
+                        //Lock ordering: avoid deadlock A -> B and B -> A
+                        Long firstLock  = Math.min(fromId, toId);
+                        Long secondLock = Math.max(fromId, toId);
 
-        lock1.lock();
-        try{
-            lock2.lock();
+                        ReentrantLock lock1 = locks.computeIfAbsent(firstLock, k -> new ReentrantLock());
+                        ReentrantLock lock2 = locks.computeIfAbsent(secondLock, k -> new ReentrantLock());
 
-            try {
-                Wallet from = wallets.get(fromId);
-                Wallet to = wallets.get(toId);
+                        lock1.lock();
+                        try{
+                            lock2.lock();
 
-                if (from == null || to == null){
-                    return new ProcessResult.Failed("Wallet not found", "WALLET_404");
-                }
+                            try {
+                                Wallet from = wallets.get(fromId);
+                                Wallet to = wallets.get(toId);
 
-                if(from.balance().compareTo(request.amount()) < 0){
-                    return new ProcessResult.Failed("Insufficient funds", "INSUFFICIENT_FUNDS");
+                                if (from == null || to == null){
+                                    return new ProcessResult.Failed("Wallet not found", "WALLET_404");
+                                }
 
-                }
+                                if(from.balance().compareTo(request.amount()) < 0){
+                                    return new ProcessResult.Failed("Insufficient funds", "INSUFFICIENT_FUNDS");
+                                }
 
-                Wallet newFrom = new Wallet(from.id(), from.owner(), from.balance().subtract(request.amount()));
-                Wallet newTo = new Wallet(to.id(), to.owner(), to.balance().add(request.amount()));
+                                Wallet newFrom = new Wallet(from.id(), from.owner(), from.balance().subtract(request.amount()));
+                                Wallet newTo = new Wallet(to.id(), to.owner(), to.balance().add(request.amount()));
 
-                wallets.put(fromId, newFrom);
-                wallets.put(toId, newTo);
+                                wallets.put(fromId, newFrom);
+                                wallets.put(toId, newTo);
 
-                return new ProcessResult.Success(UUID.randomUUID().toString(), Instant.now());
+                                return new ProcessResult.Success(UUID.randomUUID().toString(), Instant.now());
 
-            }finally {
-                lock2.unlock();
-            }
-        }finally {
-            lock1.unlock();
-        }
+                            }finally {
+                                lock2.unlock();
+                            }
+                        }finally {
+                            lock1.unlock();
+                        }
 
+                    });
+
+                });
 
     }
 
