@@ -3,6 +3,7 @@ package com.finwallet.service;
 import com.finwallet.model.ProcessResult;
 import com.finwallet.model.TransferRequest;
 import com.finwallet.model.Wallet;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,6 +19,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Uses {@link java.util.concurrent.locks.ReentrantLock} per wallet to prevent
  * race conditions during concurrent transfer. Locks are acquired in consistent order to prevent deadlocks.
  */
+@Service
 public class WalletService {
 
     private final FraudCheckService fraudCheckService;

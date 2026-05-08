@@ -7,14 +7,24 @@
 > - **Records** - Immutable domain models with compact constructor validation
 > - **Sealed Interfaces** - Exhaustive pattern matching for operation results
 > - **Virtual Threads** - Lightweight concurrency for 10k+ simultaneous transfers
-> - **Spring Boot 3.x** - REST API layer
+> - **Spring Boot 3.3.0** - REST API  + Auto-configuration
+> - **Jakarta Validation** - Request validation with detailed error responses
+> - **CompletableFuture** - Non-blocking async operations
 >
+> 
+> ##Core Features
+> **Zero Deadlocks**: ordered lock acquisition per wallet pair
+> **Zero race conditions**: Fine-grained 'ReentrantLock' per wallet ID
+> **Non-blocking I/O**: Fraud service simulates 200ms latency using Virtual Threads
+> **Producing-ready Errors**: Global exception handler with structured JSON responses
+> **API Contract**: Sealed interface 'ProcessResult' for exhaustive pattern matching
 > ##Run Locally
+>
+>###Prerequisites
+> - JDK 21+
+> - Maven 3.9+
 > ```bash
-> #Compile with Java 21 preview features
-> mvn clean compile
->#Run main demo
-> mvn exec:java
+> mvn spring-boot:run
 >```
 >## Author :
 > Yesid AP BACKEND DEVELOPER JAVA

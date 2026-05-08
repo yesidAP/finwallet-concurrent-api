@@ -1,5 +1,7 @@
 package com.finwallet.service;
 
+import org.springframework.stereotype.Service;
+
 import java.math.BigDecimal;
 import java.util.concurrent.*;
 
@@ -10,6 +12,7 @@ import java.util.concurrent.*;
  * uses {@link CompletableFuture} to avoid blocking threads during I/O operations
  * In production, this would call an external REST/gRPC fraud service
  */
+@Service
 public class FraudCheckService implements AutoCloseable{
 
     private final ScheduledExecutorService scheduler =

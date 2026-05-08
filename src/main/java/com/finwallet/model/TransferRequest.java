@@ -1,5 +1,7 @@
 package com.finwallet.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 /**
@@ -12,13 +14,7 @@ import java.math.BigDecimal;
  * @param toWalletId    Target wallet ID. Cannot be the same as the source.
  * @param amount        Amount to transfer. Must be positive.
  */
-public record TransferRequest(Long fromWalletId, long toWalletId, BigDecimal amount) {
-    public TransferRequest{
-        if (fromWalletId.equals(toWalletId)){
-            throw new IllegalArgumentException("You cannot transfer funds to the same wallet");
-        }
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0 ){
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-    }
-}
+public record TransferRequest(
+        @NotNull Long fromWalletId,
+        @NotNull Long toWalletId,
+        @NotNull @DecimalMin(value = "0.01", message = "Amount must be at least 0.01") BigDecimal amount) {}
